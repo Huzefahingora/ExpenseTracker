@@ -335,12 +335,27 @@ function App() {
               <p className="text-sm text-gray-400">Average Expense</p>
               <p className="text-2xl font-bold text-purple-400">₹{stats.average.toFixed(2)}</p>
             </div>
-            <button
-              onClick={openModal}
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-300 hover:shadow-indigo-500/25 hover:scale-105 active:scale-95"
-            >
-              Add Expense
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={openModal}
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-300 hover:shadow-indigo-500/25 hover:scale-105 active:scale-95"
+              >
+                Add Expense
+              </button>
+              <label 
+                htmlFor="jsonImport"
+                className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-300 hover:shadow-purple-500/25 hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                Import JSON
+              </label>
+              <input
+                id="jsonImport"
+                type="file"
+                accept=".json"
+                onChange={handleBulkImport}
+                className="hidden"
+              />
+            </div>
           </div>
         </header>
 
@@ -837,23 +852,6 @@ function App() {
           </div>
         </div>
       )}
-
-      {/* Import JSON Data */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <label 
-          htmlFor="jsonImport"
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
-        >
-          Import JSON Data
-        </label>
-        <input
-          id="jsonImport"
-          type="file"
-          accept=".json"
-          onChange={handleBulkImport}
-          className="hidden"
-        />
-      </div>
     </div>
   );
 }

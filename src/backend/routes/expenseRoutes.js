@@ -1,7 +1,35 @@
+
 import express from 'express';
 import Expense from '../models/Expense.js';
 
 const router = express.Router();
+/**
+ * @swagger
+ * /api/expenses:
+ *   post:
+ *     summary: Create a new expense
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               category:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Expense created successfully
+ */
 
 // ✅ CREATE - Add a new expense
 // CREATE - Add a new expense

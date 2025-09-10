@@ -247,8 +247,9 @@ function App() {
     const amount = parseFloat(e.target.amount.value);
     const category = e.target.category.value;
     const date = e.target.date.value;
+    const desc = e.target.desc.value;
     if (name && amount && category && date) {
-      const newExpenses = [...expenses, { id: Date.now(), name, amount, category, date }];
+      const newExpenses = [...expenses, { id: Date.now(), name, amount, category, date, desc}];
       setExpenses(newExpenses);
       saveExpenses(newExpenses);
       e.target.reset();
@@ -276,7 +277,8 @@ function App() {
           title: expense.title,
           amount: Number(expense.amount),
           category: expense.category,
-          date: expense.date
+          date: expense.date,
+          desc : expense.desc
         }));
 
         // Update state and localStorage
@@ -622,6 +624,7 @@ function App() {
                           <h3 className="text-lg font-medium">{expense.name}</h3>
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-400">{expense.category}</span>
+                            <span className="text-sm text-gray-500">{expense.desc}</span>
                             <span className="text-xs text-gray-500">•</span>
                             <span className="text-sm text-gray-400">{new Date(expense.date).toLocaleDateString()}</span>
                           </div>
@@ -643,7 +646,7 @@ function App() {
                 </ul>
                 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
+                {filteredExpenses.length > itemsPerPage > 1 && (
                   <div className="flex justify-center items-center space-x-2">
                     <button
                       onClick={() => setCurrentPage(1)}
@@ -722,6 +725,7 @@ function App() {
         </main>
 
         {/* Pagination Controls */}
+        {filteredExpenses.length > itemsPerPage &&(
         <div className="mt-4">
           <div className="flex justify-between items-center text-sm text-gray-400 mb-2">
             <span>Page {currentPage} of {totalPages}</span>
@@ -760,7 +764,9 @@ function App() {
             </button>
           </div>
         </div>
+        )}
       </div>
+      
 
       {isModalOpen && (
         <div className="fixed z-10 inset-0 overflow-y-auto">
@@ -810,6 +816,16 @@ function App() {
                         required
                         defaultValue={new Date().toISOString().split('T')[0]}
                         className="w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                      />
+                    </div>
+                       <div>
+                      <label htmlFor="desc" className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                      <input
+                        type="text"
+                        name="desc"
+                        id="desc"
+                        className="w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2.5 px-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                        placeholder="Enter Description"
                       />
                     </div>
                     <div>

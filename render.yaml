@@ -2,11 +2,20 @@ services:
   - type: web
     name: expense-tracker-backend
     env: node
+    region: oregon
+    plan: free
     buildCommand: npm install
-    startCommand: node src/backend/server.js
+    startCommand: npm start
     envVars:
-      - key: MONGO_URI
-        sync: false
+      - key: NODE_ENV
+        value: production
       - key: PORT
         value: 5000
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PRODUCTION_URL
+        sync: false
+    healthCheckPath: /health
     autoDeploy: true

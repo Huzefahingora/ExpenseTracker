@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from './contexts/AuthContext';
+import { useExpenses } from './contexts/ExpenseContext';
+import AuthWrapper from './components/AuthWrapper';
 
 // Helper functions for date handling and formatting
 const getMonthYear = (dateString) => {
@@ -33,6 +36,17 @@ const loadPreferences = () => {
 };
 
 function App() {
+  const { user, isAuthenticated, loading, logout, token } = useAuth();
+  const { 
+    expenses, 
+    loading: expensesLoading, 
+    error: expensesError,
+    fetchExpenses, 
+    createExpense, 
+    deleteExpense,
+    getCategories 
+  } = useExpenses();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [totalExpense, setTotalExpense] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,10 +59,8 @@ function App() {
   const [dateRange, setDateRange] = useState(savedPreferences.dateRange);
   const [customDateRange, setCustomDateRange] = useState(savedPreferences.customDateRange);
   
-  // Load saved expenses
-  const [expenses, setExpenses] = useState(loadExpenses());
-
-  const categories = ['Food & Drinks', 'Shopping', 'Housing', 'Transportation', 'Entertainment', 'Healthcare', 'Other'];
+  // Get categories from API
+  const categories = getCategories();
 
   // Filter and sort expenses
   const filteredExpenses = useMemo(() => {
@@ -224,11 +236,6 @@ function App() {
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
 
-  // Save expenses to localStorage
-  const saveExpenses = (newExpenses) => {
-    localStorage.setItem('expenses', JSON.stringify(newExpenses));
-  };
-
   // Save preferences to localStorage
   const savePreferences = () => {
     const preferences = {
@@ -241,26 +248,71 @@ function App() {
     localStorage.setItem('expensePreferences', JSON.stringify(preferences));
   };
 
-  const addExpense = (e) => {
+  // Fetch expenses when component mounts or filters change
+  useEffect(() => {
+    if (token && isAuthenticated) {
+      const options = {
+        category: selectedCategory !== 'all' ? selectedCategory : undefined,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        search: searchTerm || undefined
+      };
+      
+      // Add date range filtering
+      if (dateRange === 'today') {
+        const today = new Date().toISOString().split('T')[0];
+        options.startDate = today;
+        options.endDate = today;
+      } else if (dateRange === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        options.startDate = weekAgo.toISOString().split('T')[0];
+        options.endDate = new Date().toISOString().split('T')[0];
+      } else if (dateRange === 'month') {
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        options.startDate = monthAgo.toISOString().split('T')[0];
+        options.endDate = new Date().toISOString().split('T')[0];
+      } else if (dateRange === 'custom' && customDateRange.startDate && customDateRange.endDate) {
+        options.startDate = customDateRange.startDate;
+        options.endDate = customDateRange.endDate;
+      }
+      
+      fetchExpenses(token, options);
+    }
+  }, [token, isAuthenticated, selectedCategory, sortBy, sortOrder, dateRange, customDateRange, searchTerm]);
+
+  const addExpense = async (e) => {
     e.preventDefault();
     const name = e.target.name.value;
     const amount = parseFloat(e.target.amount.value);
     const category = e.target.category.value;
     const date = e.target.date.value;
     const desc = e.target.desc.value;
+    
     if (name && amount && category && date) {
-      const newExpenses = [...expenses, { id: Date.now(), name, amount, category, date, desc}];
-      setExpenses(newExpenses);
-      saveExpenses(newExpenses);
-      e.target.reset();
-      closeModal();
+      const result = await createExpense(token, {
+        name,
+        amount,
+        category,
+        date,
+        desc
+      });
+      
+      if (result.success) {
+        e.target.reset();
+        closeModal();
+      } else {
+        alert(result.error || 'Failed to create expense');
+      }
     }
   };
 
-  const deleteExpense = (id) => {
-    const newExpenses = expenses.filter((expense) => expense.id !== id);
-    setExpenses(newExpenses);
-    saveExpenses(newExpenses);
+  const handleDeleteExpense = async (id) => {
+    const result = await deleteExpense(token, id);
+    if (!result.success) {
+      alert(result.error || 'Failed to delete expense');
+    }
   };
 
   const handleBulkImport = (event) => {
@@ -318,6 +370,26 @@ function App() {
 
   const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
 
+  // Show loading spinner while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <svg className="animate-spin h-12 w-12 text-indigo-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show authentication wrapper if not authenticated
+  if (!isAuthenticated) {
+    return <AuthWrapper />;
+  }
+
   return (
     <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white min-h-screen">
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -326,7 +398,7 @@ function App() {
             <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">
               Expense Tracker
             </h1>
-            <p className="text-gray-400 mt-2">Keep track of your spending</p>
+            <p className="text-gray-400 mt-2">Welcome back, {user?.name || user?.username}!</p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <div className="bg-gray-800 rounded-lg p-4 shadow-lg">
@@ -357,6 +429,12 @@ function App() {
                 onChange={handleBulkImport}
                 className="hidden"
               />
+              <button
+                onClick={logout}
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-300 hover:shadow-red-500/25 hover:scale-105 active:scale-95"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </header>
@@ -611,7 +689,7 @@ function App() {
                 <ul className="space-y-4 mb-6">
                   {paginatedExpenses.map((expense) => (
                     <li
-                      key={expense.id}
+                      key={expense._id}
                       className="group flex justify-between items-center bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 backdrop-blur-sm transition-all duration-300 hover:border-indigo-500/50 hover:bg-gray-800/80"
                     >
                       <div className="flex items-center space-x-4">
@@ -621,10 +699,10 @@ function App() {
                           </svg>
                         </div>
                         <div>
-                          <h3 className="text-lg font-medium">{expense.name}</h3>
+                          <h3 className="text-lg font-medium">{expense.title || expense.name}</h3>
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-400">{expense.category}</span>
-                            <span className="text-sm text-gray-500">{expense.desc}</span>
+                            <span className="text-sm text-gray-500">{expense.description || expense.desc}</span>
                             <span className="text-xs text-gray-500">•</span>
                             <span className="text-sm text-gray-400">{new Date(expense.date).toLocaleDateString()}</span>
                           </div>
@@ -633,7 +711,7 @@ function App() {
                       <div className="flex items-center space-x-4">
                         <span className="text-lg font-semibold text-indigo-400">₹{expense.amount.toFixed(2)}</span>
                         <button 
-                          onClick={() => deleteExpense(expense.id)} 
+                          onClick={() => handleDeleteExpense(expense._id)} 
                           className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-2 hover:bg-red-500/10 rounded-lg"
                         >
                           <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -837,13 +915,9 @@ function App() {
                         className="w-full bg-gray-700/50 border border-gray-600 rounded-lg py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                       >
                         <option value="">Select a category</option>
-                        <option value="Food & Drinks">Food & Drinks</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Housing">Housing</option>
-                        <option value="Transportation">Transportation</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Healthcare">Healthcare</option>
-                        <option value="Other">Other</option>
+                        {categories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
